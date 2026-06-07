@@ -1,16 +1,615 @@
 {
-  "version": "2.6.2",
+  "version": "2.0",
   "summary": {
-    "title": "Facebook",
-    "owner": "Aleph",
-    "description": "Facebook Software Security",
+    "title": "Facebook Threat Model",
+    "owner": "Security Assessment Team",
+    "description": "Threat model for Facebook covering authentication, session management, content features, and infrastructure. Based on STRIDE, Attack Tree, and CWE/ATT&CK analysis.",
     "id": 0
   },
   "detail": {
     "contributors": [],
-    "diagrams": [],
-    "diagramTop": 1,
-    "reviewer": "Beth",
-    "threatTop": 0
+    "reviewer": "",
+    "diagrams": [
+      {
+        "title": "Authentication & Session Flow",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "diagramType": "STRIDE",
+        "id": 0,
+        "version": "2.0",
+        "diagramJson": {
+          "cells": [
+            {
+              "type": "tm.Actor",
+              "size": { "width": 160, "height": 80 },
+              "position": { "x": 30, "y": 150 },
+              "angle": 0,
+              "id": "actor-user",
+              "z": 1,
+              "threats": [],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {
+                "text": { "text": "Facebook User" }
+              }
+            },
+            {
+              "type": "tm.Actor",
+              "size": { "width": 160, "height": 80 },
+              "position": { "x": 30, "y": 380 },
+              "angle": 0,
+              "id": "actor-attacker",
+              "z": 1,
+              "threats": [],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {
+                "text": { "text": "Threat Actor" }
+              }
+            },
+            {
+              "type": "tm.Process",
+              "size": { "width": 100, "height": 100 },
+              "position": { "x": 310, "y": 130 },
+              "angle": 0,
+              "id": "process-login",
+              "z": 2,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Spoofing",
+                  "title": "Fake Facebook Login Page (Phishing)",
+                  "description": "Threat actor creates a fake Facebook login page identical to the real one. Victims enter credentials which are stolen by the threat actor.",
+                  "mitigation": "Implement HSTS and certificate pinning. Use Safe Browsing APIs to detect and block phishing domains. Educate users to verify the URL."
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "title": "Brute Force Login (CWE-307)",
+                  "description": "If login attempts are unlimited, a threat actor can brute force using a wordlist built from the victim's public profile information (birthdate, family names, life events).",
+                  "mitigation": "Implement account lockout or CAPTCHA after N failed attempts. Apply rate limiting on the authentication endpoint."
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "title": "SQL Injection on Login Page (CWE-89)",
+                  "description": "Without input sanitization, an attacker can inject SQL (e.g. ' OR '1'='1) to bypass authentication on the login page.",
+                  "mitigation": "Use parameterized queries and prepared statements. Apply allow-list input validation on all user-facing inputs."
+                },
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "title": "MFA Interception via SIM Swap (T1111)",
+                  "description": "Threat actor compromises the mobile operator via SIM swapping to intercept SMS-based MFA codes and gain access to the victim's account.",
+                  "mitigation": "Encourage use of authenticator app-based MFA over SMS. This risk is partially transferred to the mobile operator."
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": true,
+              "attrs": {
+                "text": { "text": "Login / Auth\nProcess" }
+              }
+            },
+            {
+              "type": "tm.Process",
+              "size": { "width": 100, "height": 100 },
+              "position": { "x": 310, "y": 340 },
+              "angle": 0,
+              "id": "process-session",
+              "z": 2,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Elevation of privilege",
+                  "title": "Session Cookie Theft (T1539)",
+                  "description": "Threat actor steals authenticated session cookies to access a victim's Facebook account without needing credentials.",
+                  "mitigation": "Set HttpOnly and Secure flags on all session cookies. Encrypt cookies in transit. Implement short session expiration periods."
+                },
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "title": "Insufficient Session Expiration (CWE-613)",
+                  "description": "Facebook allows expired/old tokens to still authenticate, enabling reuse of stolen tokens.",
+                  "mitigation": "Enforce strict session expiration. Invalidate tokens server-side on logout."
+                },
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "title": "Cookie Without HttpOnly Flag (CWE-1004)",
+                  "description": "Missing HttpOnly flag allows client-side scripts (e.g. via XSS) to read and steal session cookies.",
+                  "mitigation": "Set HttpOnly flag on all session cookies to block JavaScript access."
+                },
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Elevation of privilege",
+                  "title": "Cookie Reliance Without Integrity Check (CWE-565)",
+                  "description": "Application blindly trusts cookies without verifying integrity, allowing threat actors to forge or tamper with cookie values to bypass authentication.",
+                  "mitigation": "Sign cookies with HMAC. Validate cookie integrity on every request."
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": true,
+              "attrs": {
+                "text": { "text": "Session\nManagement" }
+              }
+            },
+            {
+              "type": "tm.Store",
+              "size": { "width": 160, "height": 80 },
+              "position": { "x": 580, "y": 150 },
+              "angle": 0,
+              "id": "store-userdb",
+              "z": 2,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "Critical",
+                  "type": "Information disclosure",
+                  "title": "Mass Data Breach",
+                  "description": "Attacker bypasses security to extract large volumes of user data (emails, phone numbers, profile info) for fraud, phishing, or dark web sale.",
+                  "mitigation": "Network segmentation, intrusion detection, encryption at rest, strict access controls on the database."
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "title": "Insufficiently Protected Credentials (CWE-522)",
+                  "description": "Credentials stored without proper encryption (plaintext or weak hash) can be read directly if the database is accessed.",
+                  "mitigation": "Hash all passwords using bcrypt or Argon2 with a unique salt. Never store plaintext passwords."
+                }
+              ],
+              "storesCredentials": true,
+              "outOfScope": false,
+              "hasOpenThreats": true,
+              "attrs": {
+                "text": { "text": "User Database" }
+              }
+            },
+            {
+              "type": "tm.Boundary",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "x": 260, "y": 80 },
+              "target": { "x": 800, "y": 80 },
+              "vertices": [
+                { "x": 260, "y": 530 },
+                { "x": 800, "y": 530 }
+              ],
+              "id": "boundary-server",
+              "z": 0,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "actor-user" },
+              "target": { "id": "process-login" },
+              "vertices": [],
+              "id": "flow-login-request",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Login Request", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "actor-attacker" },
+              "target": { "id": "process-login" },
+              "vertices": [{ "x": 240, "y": 390 }],
+              "id": "flow-attack-login",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Phishing / Brute Force", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "process-login" },
+              "target": { "id": "store-userdb" },
+              "vertices": [],
+              "id": "flow-db-query",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "DB Query", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "process-login" },
+              "target": { "id": "process-session" },
+              "vertices": [],
+              "id": "flow-session-token",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Session Token", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "actor-attacker" },
+              "target": { "id": "process-session" },
+              "vertices": [{ "x": 240, "y": 430 }],
+              "id": "flow-cookie-steal",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Cookie Theft / Forgery", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            }
+          ]
+        },
+        "size": { "height": 600, "width": 900 }
+      },
+      {
+        "title": "Features & Infrastructure Flow",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "diagramType": "STRIDE",
+        "id": 1,
+        "version": "2.0",
+        "diagramJson": {
+          "cells": [
+            {
+              "type": "tm.Actor",
+              "size": { "width": 160, "height": 80 },
+              "position": { "x": 30, "y": 80 },
+              "angle": 0,
+              "id": "actor-user2",
+              "z": 1,
+              "threats": [],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {
+                "text": { "text": "Authenticated User" }
+              }
+            },
+            {
+              "type": "tm.Actor",
+              "size": { "width": 160, "height": 80 },
+              "position": { "x": 30, "y": 360 },
+              "angle": 0,
+              "id": "actor-attacker2",
+              "z": 1,
+              "threats": [],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {
+                "text": { "text": "Threat Actor" }
+              }
+            },
+            {
+              "type": "tm.Process",
+              "size": { "width": 100, "height": 100 },
+              "position": { "x": 300, "y": 60 },
+              "angle": 0,
+              "id": "process-post",
+              "z": 2,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "title": "Stored XSS via Profile Bio (CWE-79)",
+                  "description": "Attacker injects <script> through the profile bio. The script is saved to the DB and executes every time a user visits the profile.",
+                  "mitigation": "Output encoding when rendering user content (convert < to &lt;). Implement Content Security Policy (CSP) headers."
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "title": "Stored XSS via Display Name in Notifications (CWE-79)",
+                  "description": "Attacker injects <img onerror=> payloads via display name which renders in HTML notification templates.",
+                  "mitigation": "Validate input with regex allow-list on data entry to reject HTML characters."
+                },
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Repudiation",
+                  "title": "Mass Account Creation for Cyberbullying",
+                  "description": "Threat actor creates many throwaway accounts for cyberbullying, then deletes them to erase evidence.",
+                  "mitigation": "Require phone/email verification for account creation. Log all account activity with non-repudiation. Rate-limit account creation."
+                },
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "type": "Tampering",
+                  "title": "CSRF - Forced Unwanted Action (CWE-352)",
+                  "description": "Attacker sends crafted link that forces an authenticated user to perform unintended actions (e.g. change password, post content).",
+                  "mitigation": "Implement CSRF tokens on all state-changing requests. Use SameSite cookie attribute."
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": true,
+              "attrs": {
+                "text": { "text": "Content /\nPost Submission" }
+              }
+            },
+            {
+              "type": "tm.Process",
+              "size": { "width": 100, "height": 100 },
+              "position": { "x": 300, "y": 300 },
+              "angle": 0,
+              "id": "process-messenger",
+              "z": 2,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "title": "Malicious File Upload via Messenger",
+                  "description": "If Messenger does not restrict file types, a threat actor can send malicious files (e.g. .exe, PHP shell) disguised as normal attachments.",
+                  "mitigation": "Validate file types using magic bytes (not just extension). Sandbox and antivirus-scan uploads. Whitelist allowed file types only."
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Information disclosure",
+                  "title": "Phishing Link Distribution via Messenger",
+                  "description": "Compromised accounts send phishing links to the victim's contacts via Messenger, spreading the attack laterally.",
+                  "mitigation": "Implement URL scanning on shared links. Warn users before navigating to external links. Detect spam/phishing patterns in messages."
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": true,
+              "attrs": {
+                "text": { "text": "Messenger\nFeature" }
+              }
+            },
+            {
+              "type": "tm.Process",
+              "size": { "width": 100, "height": 100 },
+              "position": { "x": 540, "y": 60 },
+              "angle": 0,
+              "id": "process-server",
+              "z": 2,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "Critical",
+                  "type": "Denial of service",
+                  "title": "DDoS via Botnet",
+                  "description": "Threat actor spreads trojans via messages to build a botnet, then floods Facebook servers with traffic beyond their capacity.",
+                  "mitigation": "Use CDN and DDoS protection (e.g. Cloudflare). Implement rate limiting and traffic anomaly detection."
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Denial of service",
+                  "title": "Resource Exhaustion via Unlimited Upload (CWE-770)",
+                  "description": "Without upload limits, an attacker can repeatedly upload large files to overload server storage and processing capacity.",
+                  "mitigation": "Enforce upload size and rate limits per user. Implement server-side throttling."
+                },
+                {
+                  "status": "Open",
+                  "severity": "Critical",
+                  "type": "Elevation of privilege",
+                  "title": "Social Engineering on Facebook Admin",
+                  "description": "Threat actor sends phishing emails to Facebook employees and convinces them to install malicious apps, gaining privileged internal access.",
+                  "mitigation": "Security awareness training for employees. Enforce least privilege principle. Require hardware security keys for admin access."
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": true,
+              "attrs": {
+                "text": { "text": "Facebook Server /\nInfrastructure" }
+              }
+            },
+            {
+              "type": "tm.Process",
+              "size": { "width": 100, "height": 100 },
+              "position": { "x": 540, "y": 300 },
+              "angle": 0,
+              "id": "process-search",
+              "z": 2,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "type": "Tampering",
+                  "title": "SQL Injection on Search Feature (CWE-89)",
+                  "description": "Without input sanitization on the search feature, an attacker can inject SQL to manipulate or extract data from the database.",
+                  "mitigation": "Use parameterized queries. Apply allow-list input validation for dynamic SQL elements like ORDER BY clauses."
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": true,
+              "attrs": {
+                "text": { "text": "Search\nFeature" }
+              }
+            },
+            {
+              "type": "tm.Store",
+              "size": { "width": 160, "height": 80 },
+              "position": { "x": 720, "y": 180 },
+              "angle": 0,
+              "id": "store-contentdb",
+              "z": 2,
+              "threats": [],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {
+                "text": { "text": "Content & Post\nDatabase" }
+              }
+            },
+            {
+              "type": "tm.Boundary",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "x": 250, "y": 20 },
+              "target": { "x": 870, "y": 20 },
+              "vertices": [
+                { "x": 250, "y": 500 },
+                { "x": 870, "y": 500 }
+              ],
+              "id": "boundary-app",
+              "z": 0,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "actor-user2" },
+              "target": { "id": "process-post" },
+              "vertices": [],
+              "id": "flow-submit-post",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Submit Post", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "actor-attacker2" },
+              "target": { "id": "process-messenger" },
+              "vertices": [{ "x": 220, "y": 380 }],
+              "id": "flow-malicious-message",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Send Malicious File/Link", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "process-post" },
+              "target": { "id": "store-contentdb" },
+              "vertices": [{ "x": 650, "y": 110 }],
+              "id": "flow-store-content",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Store Content", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "actor-attacker2" },
+              "target": { "id": "process-server" },
+              "vertices": [{ "x": 220, "y": 310 }, { "x": 480, "y": 100 }],
+              "id": "flow-ddos",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "DDoS / Flood Traffic", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            },
+            {
+              "type": "tm.Flow",
+              "size": { "width": 10, "height": 10 },
+              "smooth": true,
+              "source": { "id": "process-search" },
+              "target": { "id": "store-contentdb" },
+              "vertices": [],
+              "id": "flow-search-query",
+              "z": 3,
+              "labels": [
+                {
+                  "position": 0.5,
+                  "attrs": {
+                    "text": { "text": "Search Query", "font-weight": "400", "font-size": "small" }
+                  }
+                }
+              ],
+              "outOfScope": false,
+              "hasOpenThreats": false,
+              "attrs": {}
+            }
+          ]
+        },
+        "size": { "height": 600, "width": 920 }
+      }
+    ],
+    "diagramTop": 2,
+    "threatTop": 20
   }
 }
